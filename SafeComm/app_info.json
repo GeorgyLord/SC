@@ -1,0 +1,11 @@
+{
+    "name": "SafeComm",
+    "version": "1.0.0",
+    "author": "I",
+    "description": "An application for encrypted sending of e-mail messages.",
+    "license": "MY",
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/GeorgyLord/SafeComm.git"
+    }
+}
