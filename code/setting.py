@@ -103,7 +103,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "Настройки"))
         self.groupBox.setTitle(_translate("MainWindow", "Шифрование"))
         self.radioButton.setText(_translate("MainWindow", "Использовать ключ по умолчанию"))
         self.radioButton_2.setText(_translate("MainWindow", "Использовать свой ключ"))

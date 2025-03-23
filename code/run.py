@@ -28,6 +28,7 @@ from email import encoders
 
 import os
 from random import randint
+from datetime import datetime
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -36,42 +37,73 @@ from Crypto.Util.Padding import pad, unpad
 from Crypto.Random import get_random_bytes
 from cryptography.fernet import Fernet
 import base64
-import binascii
-import json
-import asyncio
+# import binascii
+# import json
+# import asyncio
 
 
 use_default_key = True
 private_key = b""
 # Генерация ключа
 def generate_key():
+    """
+    Генерирует случайный ключ для шифрования и сохраняет его в глобальной переменной private_key.
+    """
     global private_key
     key = os.urandom(32)
 
-    if use_default_key:
-        private_key = key
-    else:
-        private_key = key
+    private_key = key
+
+def get_current_time() -> str:
+    """
+    Возвращает текущее время в формате строки.
+
+    Возвращает:
+        str: Текущее время в формате "СС:ММ:ЧЧ".
+    """
+    now = datetime.now()
+    return now.strftime("%S:%M:%H")
 
 # Загрузка ключа
 def load_key():
+    """
+    Возвращает ключ для шифрования или расшифрования из файла.
+
+    Описание:
+        Функция загружает ключ из файла, расположенного в папке "key". В зависимости от
+        значения глобальной переменной use_default_key, функция загружает либо
+        ключ по умолчанию (из файла "default_key"), либо пользовательский ключ
+        (из файла "your_key").
+
+        Путь к файлу ключа формируется относительно текущей директории скрипта.
+        Папка "key" находится на одном уровне выше текущей директории.
+
+    """
     current_folder = os.path.dirname(__file__)
     if use_default_key:
         file_path = os.path.join(current_folder, "..", "key", "default_key")
     else:
         file_path = os.path.join(current_folder, "..", "key", "your_key")
-    print(file_path)
     return open(file_path, 'rb').read()
 
-    # if use_default_key:
-    #     return open('default_key.key', 'rb').read()
-    # else:
-    #     return open('your_key.key', 'rb').read()
 
 # Шифрование файла
 def encrypt_file(file_name):
-    key = load_key()
-    key = base64.urlsafe_b64encode(key)
+    """
+    Шифрует содержимое файла с использованием ключа и сохраняет зашифрованные данные в новом файле с помощью метода Fernet.
+
+    Описание:
+        Функция загружает ключ для шифрования, кодирует его в формат, совместимый с Fernet,
+        и создаёт объект Fernet для работы с данными. Затем она открывает указанный файл,
+        шифрует его содержимое и сохраняет зашифрованные данные в новом файле с расширением
+        .encrypted в папке "encrypted_files". Папка "encrypted_files" находится на одном
+        уровне выше текущей директории.
+
+        Имя зашифрованного файла сохраняется без пути, только с именем файла и добавлением
+        расширения .encrypted.
+    """
+    key = load_key() # Загружаем ключ
+    key = base64.urlsafe_b64encode(key) # Кодируем ключ в URL-safe base64
     f = Fernet(key)
 
     with open(file_name, 'rb') as file:
@@ -83,11 +115,22 @@ def encrypt_file(file_name):
     file_path = os.path.join(current_folder, "..", "encrypted_files", file_name + ".encrypted")
     with open(file_path, 'wb') as file:
         file.write(encrypted_data)
-        print('!!')
         print(file_name + '.encrypted')
 
 # Дешифрование файла
 def decrypt_file(file_name):
+    """
+    Дешифрует содержимое зашифрованного файла с использованием ключа и сохраняет расшифрованные данные в новый файл с помощью метода Fernet.
+
+    Описание:
+        Функция загружает ключ для расшифрования, кодирует его в формат, совместимый с Fernet,
+        и создаёт объект Fernet для работы с зашифрованными данными. Затем она открывает
+        зашифрованный файл, расшифровывает его содержимое и сохраняет результат в новый файл
+        с тем же именем, но без расширения .encrypted.
+
+        Зашифрованный файл должен находиться в папке "downloads", которая расположена на
+        одном уровне выше текущей директории. Расшифрованный файл сохраняется в той же папке.
+    """
     current_folder = os.path.dirname(__file__)
     # Загружаем ключ для дешифрования
     key = load_key()
@@ -110,6 +153,16 @@ def decrypt_file(file_name):
         file.write(decrypted_data)
 
 def encrypt_aes256(key: bytes, plaintext: str) -> str:
+    """
+    Шифрует текст с использованием алгоритма AES-256.
+
+    Описание:
+        Функция использует алгоритм AES-256 в режиме EAX для шифрования текста.
+        Сначала генерируется случайный вектор инициализации (IV),
+        который необходим для обеспечения уникальности шифрования даже при повторном использовании того же ключа.
+        Затем текст дополняется до размера, кратного размеру блока AES, и шифруется.
+        Результат (IV + зашифрованный текст) кодируется в base64 для удобства хранения и передачи.
+    """
     # Генерация случайного вектора инициализации (IV)
     iv = get_random_bytes(AES.block_size)
     
@@ -124,6 +177,20 @@ def encrypt_aes256(key: bytes, plaintext: str) -> str:
     return base64.b64encode(iv + ciphertext).decode()
 
 def decrypt_aes256(key: bytes, encrypted_text: str) -> str:
+    """
+    Расшифровывает текст, зашифрованный с использованием алгоритма AES-256.
+
+    Описание:
+        Функция принимает зашифрованный текст в формате base64, который был создан
+        функцией `encrypt_aes256`. Сначала данные декодируются из base64, затем
+        извлекается вектор инициализации (IV) и зашифрованный текст. Используя ключ
+        и IV, создается шифратор для расшифровки. После расшифровки удаляется
+        дополнение, и текст возвращается в виде строки.
+
+        Если в процессе расшифровки возникает ошибка (например, неверный ключ или
+        поврежденные данные), функция возвращает исходную зашифрованную строку.
+
+    """
     try:
         # Декодирование base64
         data = base64.b64decode(encrypted_text)
@@ -196,7 +263,7 @@ def decode_mime_words(s):
     return decoded_str
 
 class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
-    def __init__(self, imap_server, username, password, smtp_server):
+    def __init__(self, server_name, imap_server, username, password, smtp_server):
         super().__init__()
         self.setupUi(self)  # Настройка UI
 
@@ -204,33 +271,40 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         self.is_moving = False
         body = ''
         
+        # Настройка полей
+        self.server_name = server_name
         self.smtp_server = smtp_server
         self.imap_server = imap_server
         self.username = username
         self.password = password
 
+        # Обработка названия сервера
+        if self.server_name.find('smtp.')!=-1:
+            self.server_name = self.server_name.replace("smtp.", "")
+
         # Секретный ключ (32 байта для AES-256)
         # self.secret_key = b'\xa2\x0c\xf1\x16V\x13na\xc4\x94_\xe8\xe9\x85\x94Y\x1a\xe7T\xc9\xd5\x10@%n=\xec\xe0j=\x07;'
-        self.secret_key = load_key()
+        self.secret_key = load_key() # загрузка ключа
         # t = str(base64.urlsafe_b64encode(load_key()))[2:-1:]
         # print(t, len(t))
         # self.secret_key = t
         # key = base64.urlsafe_b64encode(self.secret_key)
         # print(key==b'PYgzLMPAP6tFVYEkR9MBscA32erSAQOvHkiNHS35s_M=')
 
-
+        # Скрываем ненужные объекты
         self.form_sending.hide()
         self.data_message.hide()
         self.scrollArea_3.hide()
         self.pushButton_4.hide()
 
+        # Вызов функций при нажатии
         self.btn_new_message.clicked.connect(self.new_message)
         self.btn_show_incoming.clicked.connect(self.show_incoming)
         self.btn_show_sent_messages.clicked.connect(self.show_sent_messages)
         self.btn_sent_email.clicked.connect(self.sent_email)
         self.pushButton_10.clicked.connect(self.open_file_dialog)
-        self.checkBox.stateChanged.connect(self.select_all)
-        self.pushButton.clicked.connect(self.delete_message)
+        self.checkBox.stateChanged.connect(self.select_all_messages)
+        self.pushButton.clicked.connect(self.delete_selected_message)
         self.cancel.clicked.connect(self.canceling_sending_message)
         self.btn_sort.clicked.connect(self.sort_emails)
         self.pushButton_4.clicked.connect(self.show_last_folder)
@@ -310,92 +384,46 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         self.is_moving = False
 
         self.mail_ids = []
-        body = []
+        self.checkbox_selected_message = None
+        self.is_checkbox = False
+        # body = []
+
+        self.draw_emails()
 
 
-        self.dr()
-        # # Поиск писем
-        # status, messages = self.mail.search(None, 'ALL')
-        # # imap.search(None, "UNSEEN") непрочиатнные письма
+    def check_smtp_connection(self):
+        smtp_server = 'smtp.' + self.server_name
+        smtp_port = 587
+        smtp_user = self.username
+        smtp_password = self.password
+        print(smtp_server, smtp_port, smtp_user, smtp_password)
+        try:
+            # Пытаемся подключиться к SMTP-серверу
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_password)
+            # QMessageBox.information(self, 'Success', 'SMTP connection successful!')
+        except Exception as e:
+            # В случае ошибки выводим сообщение и закрываем окно
+            QMessageBox.critical(self, 'Error', f'Не удалось подключиться к SMTP-серверу: {str(e)}')
+            self.close()
 
-        # # Преобразуем список идентификаторов писем в список
-        # self.mail_ids = messages[0].split()
+    def check_imap_connection(self):
+        imap_server = self.imap_server
+        imap_port = 993
+        imap_user = self.username
+        imap_password = self.password
 
-        # temp_ind = 0
-        # self.array_mes = []
-        # self.list_msg = []
-
-
-        # f = 0
-        # for i in self.mail_ids[-5:]:
-        #     # Получаем письмо
-        #     status, msg_data = self.mail.fetch(i, '(RFC822)')
-            
-        #     # Получаем сообщение
-        #     msg = email.message_from_bytes(msg_data[0][1])
-            
-        #     # print(email.message_from_bytes(msg_data[0][1]))
-        #     # print(msg["Message-ID"]) # айди письма
-        #     sender = msg["Return-path"][1:-1] # e-mail отправителя
-
-        #     # Декодируем заголовок темы
-        #     subject, encoding = decode_header(msg["Subject"])[0]
-        #     if isinstance(subject, bytes):
-        #         subject = subject.decode(encoding if encoding else 'utf-8')
-            
-        #     # Получаем дату
-        #     date_str = msg["Date"]
-        #     date = email.utils.parsedate_to_datetime(date_str)
-
-        #     # Получаем текстовое содержание письма
-        #     if msg.is_multipart():
-        #         # Если письмо многосоставное, получаем текст из частей
-        #         for part in msg.walk():
-        #             if part.get_content_type() == "text/plain":  # Только текстовые части
-        #                 body = part.get_payload(decode=True).decode(part.get_content_charset() or 'utf-8')
-        #                 break
-        #     else:
-        #         # Если письмо одночастное
-        #         body = msg.get_payload(decode=True).decode(msg.get_content_charset() or 'utf-8')
-
-        #     # Выводим информацию
-        #     # print(f"Subject: {subject}")
-        #     # print(f"Date: {date.strftime('%Y-%m-%d %H:%M:%S')}")
-        #     # print(f"Body: {body}...")
-        #     # print("=" * 40)
-        #     bool_attachments = False
-        #     if self.check_attachments_in_email(msg):
-        #         # print(f"Письмо имеет вложения.")
-        #         # сохраниение
-        #         # self.save_attachments(email.message_from_bytes(msg_data[0][1]), "download")
-        #         bool_attachments = True
-        #     else:
-        #         pass
-        #         # print(f"Письмо не имеет вложений.")
-            
-        #     frame = ClickableFrame("framet"+str(temp_ind), sender, subject, date.strftime('%S:%M:%H %d-%m-%Y'), body, bool_attachments, msg)
-
-        #     self.verticalLayout.addWidget(frame)
-
-        #     # self.verticalLayout
-        #     # usert.setText("qwe")
-        #     # subt.setText("Subject")
-        #     # labelt.setText("uhjfeurh uh qke eqdrfre f wef")
-        #     temp_ind += 1
-        #     # framet.mousePressEvent = self.on_frame_click
-        #     # array_mes.append([framet, checkbox, icont, usert, subt, labelt])
-        #     self.array_mes.append(frame)
-        #     self.list_msg.append(msg)
-        
-        # # for i in self.array_mes:
-        # #     print(i[0].objectName())
-        # # self.frame_19.setAlignment(QtCore.Qt.Alignment)
-        # # self.frame_19.mousePressEvent = self.on_frame_click
-        
-        
-        # # Закрываем соединение
-        # # self.mail.logout()
-        # self.last_size = self.size()
+        try:
+            # Пытаемся подключиться к IMAP-серверу
+            with imaplib.IMAP4_SSL(imap_server, imap_port) as server:
+                server.login(imap_user, imap_password)
+                server.logout()  # Закрываем соединение после успешной проверки
+            # QMessageBox.information(self, 'Success', 'IMAP connection successful!')
+        except Exception as e:
+            # В случае ошибки выводим сообщение и закрываем окно
+            QMessageBox.critical(self, 'Error', f'Не удалось подключиться к IMAP-серверу: {str(e)}')
+            self.close()
 
     def get_mailbox(self):
         # Получение списка почтовых ящиков
@@ -412,19 +440,27 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         else:
             print("Ошибка при получении списка ящиков")
 
-    def dr(self, must_render=False):
+    def draw_emails(self, must_render=False):
+        """
+        Получение писем с сервера и их отрисовка
+        """
+        # Проверка соединения
+        self.check_imap_connection()
+
+        # Проверка на то, что пользователь ничего не ищет
         if len(self.search_input.toPlainText())>0:
             return
         # self.mail.select('Outbox')
         try:
             status, messages = self.mail.search(None, 'ALL')
         except:
+            print('ERROR DRAW')
             self.mail.select("INBOX")
             status, messages = self.mail.search(None, 'ALL')
         if not must_render:
             if len(messages[0].split()) == len(self.mail_ids):
                 return 0
-        self.d()
+        self.delete_objects_of_list_messages()
         self.mail_ids = messages[0].split()
         temp_ind = 0
         self.array_mes = []
@@ -474,6 +510,8 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
             self.list_msg.append(msg)
 
     def show_last_folder(self):
+        if self.is_checkbox:
+            self.checkbox_selected_message.setChecked(False)
         if self.last_folder == "in":
             self.show_incoming()
         elif self.last_folder == "se":
@@ -534,7 +572,7 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         else:
             self.can_timer = True
 
-            self.dr()
+            self.draw_emails()
             # new
             # self.receiving_emails()
             # self.rendering_messages()
@@ -575,7 +613,7 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         
         # print(self.mail_ids)
 
-        self.dr(must_render=True)
+        self.draw_emails(must_render=True)
         # self.rendering_messages()
 
     def canceling_sending_message(self):
@@ -583,7 +621,7 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         self.clear_message_sending_form()
 
     def rendering_messages(self):
-        self.d()
+        self.delete_objects_of_list_messages()
         temp_ind = 0
         self.array_mes = []
 
@@ -645,28 +683,65 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
             self.list_msg.append(msg)
 
     def closeEvent(self, event):
-        reply = QMessageBox.question(self, 'Message',
-                                     "Are you sure you want to quit?",
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        """
+        Закрытие соединения и закрытие приложения
+        """
+        # По желанию можно спрашивать перед закрытием
+        # reply = QMessageBox.question(self, 'Message',
+        #                              "Are you sure you want to quit?",
+        #                              QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         
-        if reply == QMessageBox.Yes:
-            # Закрываем соединение
-            self.mail.logout()
-            event.accept()  # Закрыть приложение
-        else:
-            event.ignore()  # Игнорировать событие закрытия
+        # if reply == QMessageBox.Yes:
+        #     # Закрываем соединение
+        #     self.mail.logout()
+        #     event.accept()  # Закрыть приложение
+        # else:
+        #     event.ignore()  # Игнорировать событие закрытия
 
-    def delete_message(self):
+    def delete_selected_message(self):
+        # self.show_last_folder()
+        """
+        Удаляет выбранные сообщения из почтового ящика и обновляет интерфейс.
+
+        Описание:
+            Метод проходит по всем сообщениям в списке self.array_mes и проверяет,
+            отмечены ли они флажком (чекбоксом). Если сообщение отмечено, оно помечается
+            для удаления с помощью флага \\Deleted. После этого все помеченные сообщения
+            удаляются с помощью команды expunge.
+
+            После удаления сообщений снимается выделение с чекбокса и обновляется
+            интерфейс с помощью метода self.draw_emails().
+        """
         for i in range(len(self.array_mes)):
             if self.array_mes[i].checkbox.isChecked():
                 self.mail.store(self.mail_ids[i], '+FLAGS', '\\Deleted')
+        
+        # Удаляем помеченные сообщения
         self.mail.expunge()
-        self.checkBox.setChecked(False)
-        self.dr()
-        # self.receiving_emails()
-        # self.rendering_messages()
 
-    def select_all(self, checked):
+        # Снимаем выделение с чекбокса
+        self.checkBox.setChecked(False)
+
+        self.is_checkbox = False
+
+        self.show_last_folder()
+
+        # Обновляем интерфейс
+        self.draw_emails()
+
+    def select_all_messages(self, checked):
+        """
+        Выбирает или снимает выделение со всех сообщений в списке.
+
+        Параметры:
+            checked (bool): Если True, все сообщения будут выбраны (чекбоксы отмечены). Если False, выделение со всех сообщений будет снято.
+
+        Описание:
+            Метод проходит по всем сообщениям в списке self.array_mes и устанавливает
+            состояние чекбоксов в зависимости от значения параметра checked. Если
+            checked равно True, все чекбоксы будут отмечены. Если checked равно
+            False, все чекбоксы будут сняты.
+        """
         if checked:
             for i in range(len(self.array_mes)):
                 self.array_mes[i].checkbox.setChecked(True)
@@ -739,14 +814,17 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
             self.form_configuration.show()
             self.search_input.show()
             self.data_message.hide()
-        else:
-            self.form_sending.show()  # Или self.form_sending.setVisible(True)
-            self.form_messages.hide()
-            self.form_configuration.hide()
-            self.search_input.hide()
-            self.data_message.hide()
+                
+        self.form_sending.show()  # Или self.form_sending.setVisible(True)
+        self.form_messages.hide()
+        self.form_configuration.hide()
+        self.search_input.hide()
+        self.data_message.hide()
 
     def show_incoming(self): # Входящие
+        """
+        
+        """
         # self.timer.start(5000)
         # self.timer2.start(500)
         for i in range(len(self.list_sent_file)):
@@ -769,11 +847,12 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         else:
             self.data_message.hide()
             self.pushButton_4.hide()
+        self.form_sending.hide()
+        self.search_input.show()
+        self.form_configuration.show()
 
         if self.last_folder != 'in':
-            self.dr()
-            # self.receiving_emails()
-            # self.rendering_messages()
+            self.draw_emails(must_render=True)
         self.last_folder = 'in'
 
     def show_sent_messages(self): # Отправленные
@@ -789,7 +868,7 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         # # Получаем текущий выбранный почтовый ящик
         # status, current_mailbox = self.mail.status('INBOX', "(MESSAGES UNSEEN)")
         # print(f"Выбранный почтовый ящик: {current_mailbox}")
-        # self.d()
+        # self.delete_objects_of_list_messages()
         if not self.form_messages.isVisible():
             self.form_sending.hide()  # Или self.form_sending.setVisible(False)
             self.form_messages.show()
@@ -800,8 +879,12 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         else:
             self.data_message.hide()
             self.pushButton_4.hide()
+        self.form_sending.hide()
+        self.search_input.show()
+        self.form_configuration.show()
+
         if self.last_folder != 'se':
-            self.dr()
+            self.draw_emails(must_render=True)
             # self.receiving_emails()
             # self.rendering_messages()
         self.last_folder = 'se'
@@ -810,25 +893,36 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         self.data_message.hide()
         self.form_messages.show()
         print("Показать письма себе")
+        print(self.last_folder)
         try:
             self.mail.select("INBOX/ToMyself")
         except:
+            print('ERROR')
             self.mail.select("INBOX")
+        self.search_input.show()
+        self.pushButton_4.hide()
+        self.checkBox.show()
+        self.form_sending.hide()
+        self.form_configuration.show()
         if self.last_folder != 'yo':
-            self.dr()
+            self.draw_emails(must_render=True)
             # self.receiving_emails()
             # self.rendering_messages()
         # self.receiving_emails()
         # self.rendering_messages()
         self.last_folder = 'yo'
 
-    def d(self):
+    def delete_objects_of_list_messages(self):
+        """
+        Удаление объектов сообщений из списка и его очистка
+        """
         for i in range(len(self.array_mes)):
-            self.array_mes[i].deleteLater()
+            self.array_mes[i].deleteLater() # безопасное удаление объекта
         self.array_mes.clear()
     
-    def show_data_message(self, sender, subject, date, body, bool_attachments, msg):
-        print(sender, subject, date,)
+    def show_data_message(self, sender, subject, date, body, bool_attachments, msg, checkbox):
+        self.is_checkbox = True
+        print(sender, subject, date)
         # self.stop_timer()
         self.checkBox.hide()
         self.label_14.hide()
@@ -867,7 +961,7 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
                         try:
                             filename = decode_mime_words(part.get_filename())
                         except:
-                            filename = "error"
+                            filename = "file"+str(randint(1000000, 9999999))
                         # filename = part.get_filename()
                         # print(filename)
                         f = SentFile(len(self.list_sent_file), filename, part)
@@ -898,6 +992,9 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
             QMessageBox.information(self, "Уведомление", f'Скачан: {file_path}')
 
     def sent_email(self):
+        # Проверка соединения для отправки
+        self.check_smtp_connection()
+
         # Создаем сообщение
         msg = MIMEMultipart()
         msg['From'] = win.textEdit_2.toPlainText()
@@ -959,14 +1056,14 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
     def update_content(self):
         if self.can_timer:
             try:
-                print("<!> Обновление!", self.can_timer)
-                self.dr()
+                print(f"{get_current_time()} UPDATE", self.can_timer)
+                self.draw_emails()
                 return
                 last_count_emails = len(self.mail_ids)
                 self.receiving_emails()
                 new_count_emails = len(self.mail_ids)
                 if last_count_emails != new_count_emails:
-                    self.d()
+                    self.delete_objects_of_list_messages()
                     self.rendering_messages()
             except:
                 pass
@@ -983,21 +1080,8 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
             t = file_name[file_name.rfind("/")+1::]
 
             ts = SelectedFile(len(self.list_selected_files), t, file_name)
-            # self.scrollArea_3.setWidget(ts)
             self.horizontalLayout_15.addWidget(ts)
-            # self.horizontalLayout_15.addWidget(ts)
             self.list_selected_files.append(ts)
-            # self.pushButton_112 = QtWidgets.QPushButton(self.scrollAreaWidgetContents_3)
-            # sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-            # sizePolicy.setHorizontalStretch(0)
-            # sizePolicy.setVerticalStretch(0)
-            # sizePolicy.setHeightForWidth(self.pushButton_112.sizePolicy().hasHeightForWidth())
-            # self.pushButton_112.setSizePolicy(sizePolicy)
-            # self.pushButton_112.setMinimumSize(QtCore.QSize(100, 100))
-            # self.pushButton_112.setMaximumSize(QtCore.QSize(100, 100))
-            # self.pushButton_112.setObjectName("pushButton_112")
-            # self.horizontalLayout_15.addWidget(self.pushButton_112, 0, QtCore.Qt.AlignLeft)
-            # self.pushButton_112.setText(file_name[file_name.rfind("/")+1::])
 
     def delete_selected_file(self, number):
         self.list_selected_files[number].deleteLater()
@@ -1122,11 +1206,21 @@ class ClickableFrame(QFrame):
                 max_length = i
             else:
                 break
-        self.labelt.setText(self.tbody[:max(0, max_length-13)]+"...")
+        self.tbody = self.tbody.replace('\n', '')
+        # print(f'LEN = {max(0, max_length-13)}; {self.tbody}')
+        if self.tbody.strip() == '':
+            self.labelt.setText('<EMPTY>')
+        else:
+            self.tbody = str(self.tbody).strip().replace('⠀', '').replace('\n', '')
+            # print('*'*50)
+            # print(f'{max_length} START->{self.tbody[:max(0, max_length-13)]}<-END')
+            self.labelt.setText(self.tbody[:max(0, max_length-13)].rstrip()+"...")
 
     def mousePressEvent(self, event):
         print(f"{self.name} was clicked!")
-        win.window.show_data_message(self.sende, self.subject, self.date, self.body, self.bool_attachments, self.msg)
+        self.checkbox.setChecked(True)
+        win.window.checkbox_selected_message = self.checkbox
+        win.window.show_data_message(self.sende, self.subject, self.date, self.body, self.bool_attachments, self.msg, self.checkbox)
 
 class SelectedFile(QFrame):
     def __init__(self, num, text, file_address, *args, **kwargs):
@@ -1253,13 +1347,13 @@ class LoginWindow(QMainWindow, login.Ui_MainWindow):
         ser = self.textEdit.toPlainText() # по умолчанию smtp.mail.ru
         email = self.textEdit_2.toPlainText()
         password = self.textEdit_3.toPlainText()
-        print(ser, email, password, 'imap'+ser[ser.find('.'):ser.rfind('.'):]+ser[ser.rfind('.')::])
+        # print(ser, email, password, 'imap'+ser[ser.find('.'):ser.rfind('.'):]+ser[ser.rfind('.')::])
 
         try:
             with smtplib.SMTP(ser, 587) as self.smtp_server: # 587 или 465
                 self.smtp_server.starttls()  # Начало защищенной сессии
                 self.smtp_server.login(email, password)
-                self.window = MainWindow('imap'+ser[ser.find('.'):ser.rfind('.'):]+ser[ser.rfind('.')::], email, password, self.smtp_server)
+                self.window = MainWindow(ser, 'imap'+ser[ser.find('.'):ser.rfind('.'):]+ser[ser.rfind('.')::], email, password, self.smtp_server)
                 self.window.show()
                 self.close()
         except smtplib.SMTPAuthenticationError:
@@ -1286,6 +1380,9 @@ class SettingWindow(QMainWindow, setting.Ui_MainWindow):
         # self.textEdit.setText(str(base64.urlsafe_b64encode(open('your_key.key', 'rb').read()))[2:-1:])
 
     def safe_setting(self):
+        """
+        Сохранение настроек
+        """
         global use_default_key
         if self.use_your_own_key:
             if len(self.textEdit.toPlainText())==44:
@@ -1320,6 +1417,10 @@ class SettingWindow(QMainWindow, setting.Ui_MainWindow):
         self.pushButton_2.setEnabled(True)
 
     def copy_to_clipboard(self):
+        """
+        Копирования пароля в буфер обмена
+        """
+
         # Получаем текст из поля ввода
         text_to_copy = self.textEdit.toPlainText()
         

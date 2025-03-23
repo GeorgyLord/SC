@@ -1,0 +1,1 @@
+delete_selected_message
