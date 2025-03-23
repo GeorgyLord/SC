@@ -227,7 +227,9 @@ def create_avatar(letter="Q", random_background_color=False, random_font_color=F
     avatar = Image.new('RGB', size, background_color)
 
     # Загружаем шрифт
-    font = ImageFont.truetype("arial.ttf", font_size)  # Замените "arial.ttf" на путь к шрифту на вашей системе
+    current_folder = os.path.dirname(__file__)
+    file_path = os.path.join(current_folder, "..", "styles", "image_style.ttf") # Можно заменить на путь к шрифту на вашей системе
+    font = ImageFont.truetype(file_path, font_size)
 
     # Создание объекта для рисования
     draw = ImageDraw.Draw(avatar)
