@@ -366,24 +366,29 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         # imap_server = "imap.mail.ru"  # Замените на адрес вашего IMAP-сервера
 
         # Подключение к серверу
-        self.mail = imaplib.IMAP4_SSL(self.imap_server) # 1 способ
+        # 1
+        # self.mail = imaplib.IMAP4_SSL(self.imap_server) # 1 способ
         # self.mail = aioimaplib.IMAP4_SSL(self.imap_server)
         
         # Логин
-        self.mail.login(self.username, self.password)
+        # 2
+        # self.mail.login(self.username, self.password)
 
         # Получение списка почтовых ящиков
         # mailboxes = self.mail.list()
         # print(mailboxes)
         # print(mailboxes[1])
-        self.get_mailbox()
+        # 3
+        # self.get_mailbox()
 
 
         # Выбор почтового ящика (например, "INBOX")
-        self.mail.select("INBOX")
+        # 4
+        # self.mail.select("INBOX")
 
         # Булевая переменная для отслеживания завершения перемещения
         self.is_moving = False
+        self.mailbox = "INBOX"
 
         self.mail_ids = []
         self.checkbox_selected_message = None
@@ -446,19 +451,40 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         """
         Получение писем с сервера и их отрисовка
         """
-        # Проверка соединения
-        self.check_imap_connection()
-
-        # Проверка на то, что пользователь ничего не ищет
+        # Проверка на то, что пользователь ничего не ищет, иначе завершаем функцию
         if len(self.search_input.toPlainText())>0:
             return
+        
+        mailbox = self.mailbox
+        # Проверка соединения
+        # self.check_imap_connection()
+        # imap_server = self.imap_server
+        # imap_port = 993
+        # imap_user = self.username
+        # imap_password = self.password
+
+        try:
+            self.mail = imaplib.IMAP4_SSL(self.imap_server)
+            self.mail.login(self.username, self.password)
+        except Exception as e:
+            # В случае ошибки выводим сообщение и закрываем окно
+            self.close()
+            QMessageBox.critical(self, 'Error', f'Не удалось подключиться к IMAP-серверу: {str(e)}')
+
+
+
+        # self.mail = imaplib.IMAP4_SSL(self.imap_server)
+        # self.mail.login(self.username, self.password)
+
         # self.mail.select('Outbox')
         try:
+            self.mail.select(mailbox)
             status, messages = self.mail.search(None, 'ALL')
         except:
             print('ERROR DRAW')
             self.mail.select("INBOX")
             status, messages = self.mail.search(None, 'ALL')
+            # self.mail.logout()
         if not must_render:
             if len(messages[0].split()) == len(self.mail_ids):
                 return 0
@@ -510,6 +536,7 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
             temp_ind += 1
             self.array_mes.append(frame)
             self.list_msg.append(msg)
+        self.mail.logout()
 
     def show_last_folder(self):
         if self.is_checkbox:
@@ -836,7 +863,8 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         self.label_14.show()
         self.btn_sort.show()
         print("Показать входящие")
-        self.mail.select("INBOX")
+        self.mailbox = "INBOX"
+        # self.mail.select("INBOX")
         # self.receiving_emails()
         # self.rendering_messages()
         if not self.form_messages.isVisible():
@@ -861,10 +889,11 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         self.data_message.hide()
         self.form_messages.show()
         print("Показать отправленные сообщения")
-        try:
-            self.mail.select("&BB4EQgQ,BEAEMAQyBDsENQQ9BD0ESwQ1-")
-        except:
-            self.mail.select("INBOX")
+        self.mailbox = "&BB4EQgQ,BEAEMAQyBDsENQQ9BD0ESwQ1-"
+        # try:
+        #     self.mail.select("&BB4EQgQ,BEAEMAQyBDsENQQ9BD0ESwQ1-")
+        # except:
+        #     self.mail.select("INBOX")
         # self.receiving_emails()
         # self.rendering_messages()
         # # Получаем текущий выбранный почтовый ящик
@@ -896,11 +925,12 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         self.form_messages.show()
         print("Показать письма себе")
         print(self.last_folder)
-        try:
-            self.mail.select("INBOX/ToMyself")
-        except:
-            print('ERROR')
-            self.mail.select("INBOX")
+        self.mailbox = "INBOX/ToMyself"
+        # try:
+        #     self.mail.select("INBOX/ToMyself")
+        # except:
+        #     print('ERROR')
+        #     self.mail.select("INBOX")
         self.search_input.show()
         self.pushButton_4.hide()
         self.checkBox.show()
