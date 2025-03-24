@@ -1,5 +1,7 @@
+smtp.mail.ru
 safecomm@mail.ru
 X5vcL2BsRucWJpZ2z0rU
 
+smtp.yandex.ru
 moscowt34@yandex.ru
 ehrgscxzfwvmeujb

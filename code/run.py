@@ -889,7 +889,7 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         self.data_message.hide()
         self.form_messages.show()
         print("Показать отправленные сообщения")
-        self.mailbox = "&BB4EQgQ,BEAEMAQyBDsENQQ9BD0ESwQ1-"
+        self.mailbox = "Sent"
         # try:
         #     self.mail.select("&BB4EQgQ,BEAEMAQyBDsENQQ9BD0ESwQ1-")
         # except:
