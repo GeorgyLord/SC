@@ -407,8 +407,8 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
             # QMessageBox.information(self, 'Success', 'SMTP connection successful!')
         except Exception as e:
             # В случае ошибки выводим сообщение и закрываем окно
-            QMessageBox.critical(self, 'Error', f'Не удалось подключиться к SMTP-серверу: {str(e)}')
             self.close()
+            QMessageBox.critical(self, 'Error', f'Не удалось подключиться к SMTP-серверу: {str(e)}')
 
     def check_imap_connection(self):
         imap_server = self.imap_server
@@ -424,8 +424,8 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
             # QMessageBox.information(self, 'Success', 'IMAP connection successful!')
         except Exception as e:
             # В случае ошибки выводим сообщение и закрываем окно
-            QMessageBox.critical(self, 'Error', f'Не удалось подключиться к IMAP-серверу: {str(e)}')
             self.close()
+            QMessageBox.critical(self, 'Error', f'Не удалось подключиться к IMAP-серверу: {str(e)}')
 
     def get_mailbox(self):
         # Получение списка почтовых ящиков
