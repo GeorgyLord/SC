@@ -364,7 +364,6 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
             with smtplib.SMTP(smtp_server, smtp_port) as server:
                 server.starttls()
                 server.login(smtp_user, smtp_password)
-            # QMessageBox.information(self, 'Success', 'SMTP connection successful!')
         except Exception as e:
             # В случае ошибки выводим сообщение и закрываем окно
             self.close()
@@ -381,7 +380,6 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
             with imaplib.IMAP4_SSL(imap_server, imap_port) as server:
                 server.login(imap_user, imap_password)
                 server.logout()  # Закрываем соединение после успешной проверки
-            # QMessageBox.information(self, 'Success', 'IMAP connection successful!')
         except Exception as e:
             # В случае ошибки выводим сообщение и закрываем окно
             self.close()
@@ -507,6 +505,7 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         if not self.is_moving:
             self.is_moving = True
             self.can_timer = False
+
         # Перезапускаем таймер каждый раз при перемещении
         self.timer4.start(200)  # 200 мс, чтобы ожидать остановки
 
@@ -550,7 +549,6 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         if input_text != "":
             self.can_timer = False
             self.search_message(input_text)
-            # self.stop_timer()
         else:
             self.can_timer = True
 
@@ -604,9 +602,7 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         Закрытие соединения и закрытие приложения
         """
         # спрашиваем перед закрытием
-        reply = QMessageBox.question(self, 'Message',
-                                     "Are you sure you want to quit?",
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        reply = QMessageBox.question(self, 'Message', "Are you sure you want to quit?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         
         if reply == QMessageBox.Yes:
             # Закрываем соединение
@@ -710,13 +706,13 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
     def new_message(self): # новое сообщение
         print("Новое письмо")
         if self.form_sending.isVisible():
-            self.form_sending.hide()  # Или self.form_sending.setVisible(False)
+            self.form_sending.hide()
             self.form_messages.show()
             self.form_configuration.show()
             self.search_input.show()
             self.data_message.hide()
                 
-        self.form_sending.show()  # Или self.form_sending.setVisible(True)
+        self.form_sending.show()
         self.form_messages.hide()
         self.form_configuration.hide()
         self.search_input.hide()
@@ -724,10 +720,19 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
 
     def show_incoming(self): # Входящие
         """
+        Отображает интерфейс для работы с входящими письмами.
         
+        Выполняет:
+        1. Очистку предыдущих элементов интерфейса
+        2. Настройку видимости элементов управления
+        3. Переключение на папку "INBOX"
+        4. Обновление списка писем (при необходимости)
+        
+        Логика работы:
+        - Скрывает ненужные элементы интерфейса
+        - Показывает только элементы для работы с входящими
+        - Обновляет список писем только при реальном переключении папки
         """
-        # self.timer.start(5000)
-        # self.timer2.start(500)
         for i in range(len(self.list_sent_file)):
             self.list_sent_file[i].deleteLater()
         self.list_sent_file = []
@@ -737,15 +742,9 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         print("Показать входящие")
         self.mailbox = "INBOX"
         if not self.form_messages.isVisible():
-            self.form_sending.hide()  # Или self.form_sending.setVisible(False)
-            self.form_messages.show()
-            self.form_configuration.show()
-            self.search_input.show()
-            self.data_message.hide()
-            self.pushButton_4.hide()
-        else:
-            self.data_message.hide()
-            self.pushButton_4.hide()
+            self.form_sending.hide()
+        self.data_message.hide()
+        self.pushButton_4.hide()
         self.form_sending.hide()
         self.search_input.show()
         self.form_configuration.show()
@@ -759,24 +758,10 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         self.form_messages.show()
         print("Показать отправленные сообщения")
         self.mailbox = "Sent"
-        # try:
-        #     self.mail.select("&BB4EQgQ,BEAEMAQyBDsENQQ9BD0ESwQ1-")
-        # except:
-        #     self.mail.select("INBOX")
-        # # Получаем текущий выбранный почтовый ящик
-        # status, current_mailbox = self.mail.status('INBOX', "(MESSAGES UNSEEN)")
-        # print(f"Выбранный почтовый ящик: {current_mailbox}")
-        # self.delete_objects_of_list_messages()
         if not self.form_messages.isVisible():
-            self.form_sending.hide()  # Или self.form_sending.setVisible(False)
             self.form_messages.show()
-            self.form_configuration.show()
-            self.search_input.show()
-            self.data_message.hide()
-            self.pushButton_4.hide()
-        else:
-            self.data_message.hide()
-            self.pushButton_4.hide()
+        self.data_message.hide()
+        self.pushButton_4.hide()
         self.form_sending.hide()
         self.search_input.show()
         self.form_configuration.show()
@@ -791,11 +776,6 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         print("Показать письма себе")
         print(self.last_folder)
         self.mailbox = "INBOX/ToMyself"
-        # try:
-        #     self.mail.select("INBOX/ToMyself")
-        # except:
-        #     print('ERROR')
-        #     self.mail.select("INBOX")
         self.search_input.show()
         self.pushButton_4.hide()
         self.checkBox.show()
