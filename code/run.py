@@ -342,6 +342,7 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         self.text_changed = False
 
         self.can_timer = True
+        self.forcibly_close = False
 
         # Булевая переменная для отслеживания завершения перемещения
         self.is_moving = False
@@ -426,6 +427,7 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
             self.mail.login(self.username, self.password)
         except Exception as e:
             # В случае ошибки выводим сообщение и закрываем окно
+            self.forcibly_close = True
             self.close()
             QMessageBox.critical(self, 'Error', f'Не удалось подключиться к IMAP-серверу: {str(e)}')
 
@@ -601,15 +603,19 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         """
         Закрытие соединения и закрытие приложения
         """
-        # спрашиваем перед закрытием
-        reply = QMessageBox.question(self, 'Message', "Are you sure you want to quit?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        
-        if reply == QMessageBox.Yes:
-            # Закрываем соединение
-            self.mail.logout()
+        # если принудительно, то закрываем приложение сразу
+        if self.forcibly_close:
             event.accept()  # Закрыть приложение
         else:
-            event.ignore()  # Игнорировать событие закрытия
+            # спрашиваем перед закрытием
+            reply = QMessageBox.question(self, 'Message', "Are you sure you want to quit?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                
+            if reply == QMessageBox.Yes:
+                # Закрываем соединение
+                self.mail.logout()
+                event.accept()  # Закрыть приложение
+            else:
+                event.ignore()  # Игнорировать событие закрытия
 
     def delete_selected_message(self):
         """
@@ -624,12 +630,21 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
             После удаления сообщений снимается выделение с чекбокса и обновляется
             интерфейс с помощью метода self.draw_emails().
         """
+        self.mail_delete = imaplib.IMAP4_SSL(self.imap_server)
+        self.mail_delete.login(self.username, self.password)
+        self.mail_delete.select(self.mailbox)
         for i in range(len(self.array_mes)):
             if self.array_mes[i].checkbox.isChecked():
-                self.mail.store(self.mail_ids[i], '+FLAGS', '\\Deleted')
+                try:
+                    self.mail_delete.store(self.mail_ids[i], '+FLAGS', '\\Deleted')
+                except:
+                    pass
         
         # Удаляем помеченные сообщения
-        self.mail.expunge()
+        self.mail_delete.expunge()
+
+        # Закрываем соединение
+        self.mail_delete.logout()
 
         # Снимаем выделение с чекбокса
         self.checkBox.setChecked(False)
@@ -733,6 +748,7 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         - Показывает только элементы для работы с входящими
         - Обновляет список писем только при реальном переключении папки
         """
+        self.can_timer = True
         for i in range(len(self.list_sent_file)):
             self.list_sent_file[i].deleteLater()
         self.list_sent_file = []
@@ -741,9 +757,8 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         self.btn_sort.show()
         print("Показать входящие")
         self.mailbox = "INBOX"
-        if not self.form_messages.isVisible():
-            self.form_sending.hide()
         self.data_message.hide()
+        self.form_messages.show()
         self.pushButton_4.hide()
         self.form_sending.hide()
         self.search_input.show()
@@ -754,6 +769,7 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         self.last_folder = 'in'
 
     def show_sent_messages(self): # Отправленные
+        self.can_timer = True
         self.data_message.hide()
         self.form_messages.show()
         print("Показать отправленные сообщения")
@@ -794,6 +810,7 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
         self.array_mes.clear()
     
     def show_data_message(self, sender, subject, date, body, bool_attachments, msg, checkbox):
+        self.can_timer = False
         self.is_checkbox = True
         print(sender, subject, date)
         # self.stop_timer()
@@ -905,10 +922,12 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
             win.server.send_message(msg)
             print('Письмо отправлено успешно!')
             self.show_incoming()
+            QMessageBox.information(self, "Успех", "Письмо успешно отправлено!", QMessageBox.Ok)
             self.clear_message_sending_form()
 
         except Exception as e:
             print(f'Произошла ошибка: {e}')
+            QMessageBox.critical(self, "Ошибка", "Не удалось отправить письмо!", QMessageBox.Ok)
 
     def clear_message_sending_form(self):
         self.textEdit_3.setText("")
