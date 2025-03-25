@@ -923,12 +923,12 @@ class MainWindow(QMainWindow, safecomm.Ui_MainWindow):
             win.server.starttls()  # Защита соединения
             win.server.login(win.textEdit_2.toPlainText(), win.textEdit_3.toPlainText())
             win.server.send_message(msg)
-            print('Письмо отправлено успешно! 😊')
+            print('Письмо отправлено успешно!')
             self.show_incoming()
             self.clear_message_sending_form()
 
         except Exception as e:
-            print(f'Произошла ошибка: {e} 😞')
+            print(f'Произошла ошибка: {e}')
 
     def clear_message_sending_form(self):
         self.textEdit_3.setText("")
